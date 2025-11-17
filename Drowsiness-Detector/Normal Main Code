@@ -1,0 +1,146 @@
+import cv2
+import numpy as np
+from keras.models import load_model
+import matplotlib.pyplot as plt
+import os
+
+# Load cascades
+face_cascade = cv2.CascadeClassifier('/kaggle/input/haarcascade/haarcascade_frontalface_alt.xml')
+leye = cv2.CascadeClassifier('/kaggle/input/haarcascade/haarcascade_lefteye_2splits.xml')
+reye = cv2.CascadeClassifier('/kaggle/input/haarcascade/haarcascade_righteye_2splits.xml')
+
+# Load the pre-trained model
+model = load_model('/kaggle/input/model-data/model.h5')
+
+# Labels for prediction
+labels = ['Closed', 'Open']
+
+# Video input
+cap = cv2.VideoCapture('/kaggle/input/video-sample/2025-04-04 18-04-07.mp4')
+
+# Create folder to save frames
+output_dir = 'output_frames'
+os.makedirs(output_dir, exist_ok=True)
+saved_count = 0
+
+# Read and process frames
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    height, width = frame.shape[:2]
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    right_eye_pred = left_eye_pred = "Unknown"
+
+    for (x, y, w, h) in faces:
+        face = frame[y:y+h, x:x+w]
+        gray_face = gray[y:y+h, x:x+w]
+
+        # Detect right eye
+        right_eye = reye.detectMultiScale(gray_face)
+        for (ex, ey, ew, eh) in right_eye:
+            r_eye = gray_face[ey:ey+eh, ex:ex+ew]
+            r_eye = cv2.resize(r_eye, (52, 52))
+            r_eye = r_eye / 255.0
+            r_eye = r_eye.reshape(1, 52, 52, 1)
+            rpred = model.predict(r_eye)
+            rpred = np.argmax(rpred, axis=1)
+            right_eye_pred = labels[int(rpred)]
+            break
+
+        # Detect left eye
+        left_eye = leye.detectMultiScale(gray_face)
+        for (ex, ey, ew, eh) in left_eye:
+            l_eye = gray_face[ey:ey+eh, ex:ex+ew]
+            l_eye = cv2.resize(l_eye, (52, 52))
+            l_eye = l_eye / 255.0
+            l_eye = l_eye.reshape(1, 52, 52, 1)
+            lpred = model.predict(l_eye)
+            lpred = np.argmax(lpred, axis=1)
+            left_eye_pred = labels[int(lpred)]
+            break
+
+        break  # process only the first detected face
+
+    # Annotate the frame
+    text = f"L: {left_eye_pred} | R: {right_eye_pred}"
+    color = (0, 255, 0) if left_eye_pred == right_eye_pred == "Open" else (0, 0, 255)
+    cv2.putText(frame, text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+
+    # Save frame every 20th
+    if saved_count % 20 == 0:
+        cv2.imwrite(f"{output_dir}/frame_{saved_count}.jpg", frame)
+
+    saved_count += 1
+
+cap.release()
+
+
+#checking if the files are caught correctly
+import os
+
+print("Face cascade:", os.path.exists('/kaggle/input/haarcascade/haarcascade_frontalface_alt.xml'))
+print("Left eye cascade:", os.path.exists('/kaggle/input/haarcascade/haarcascade_righteye_2splits.xml'))
+print("Right eye cascade:", os.path.exists('/kaggle/input/haarcascade/haarcascade_righteye_2splits.xml'))
+
+output
+import cv2
+import matplotlib.pyplot as plt
+import os
+
+# Parameters
+frame_folder = "output_frames"
+num_frames_to_show = 20  # Change this if needed
+
+# Get sorted list of saved frame paths
+saved_frames = sorted([os.path.join(frame_folder, f) for f in os.listdir(frame_folder) if f.endswith(".jpg")])
+selected_frames = saved_frames[:num_frames_to_show]  # Pick first few
+
+# Plot the frames
+plt.figure(figsize=(16, 8))
+cols = 3
+rows = (len(selected_frames) + cols - 1) // cols
+
+for i, frame_path in enumerate(selected_frames):
+    img = cv2.imread(frame_path)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    plt.subplot(rows, cols, i + 1)
+    plt.imshow(img_rgb)
+    plt.axis('off')
+    plt.title(f"Frame {i * 300}")  # Assuming you saved every 20th frame
+
+plt.tight_layout()
+plt.show()
+
+#convert to GIF
+import imageio
+import os
+import cv2
+
+# Folder where frames are saved
+frame_folder = "output_frames"
+
+# Get list of saved frames sorted by name
+frame_files = sorted([f for f in os.listdir(frame_folder) if f.endswith(".jpg")])
+frame_paths = [os.path.join(frame_folder, f) for f in frame_files]
+
+# Read frames and convert to RGB (GIF uses RGB)
+frames = []
+for path in frame_paths:
+    img = cv2.imread(path)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    frames.append(img_rgb)
+
+# Save as GIF
+gif_path = "drowsiness_output.gif"
+imageio.mimsave(gif_path, frames, duration=0.2)  # duration per frame in seconds
+
+print(f"✅ GIF saved as: {gif_path}")
+
+#output GIF
+from IPython.display import Image
+Image(filename="drowsiness_output.gif")
+
