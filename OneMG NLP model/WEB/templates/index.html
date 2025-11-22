@@ -263,6 +263,22 @@
             display: none;
         }
 
+        /* Spell Correction Notice */
+        .spell-correction {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            color: #1565c0;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin: 20px 40px;
+            border-left: 4px solid #1976d2;
+            display: none;
+            font-size: 0.95em;
+        }
+
+        .spell-correction strong {
+            font-weight: 600;
+        }
+
         /* Results Section */
         .results {
             padding: 40px;
@@ -571,6 +587,9 @@
         <!-- Error Message -->
         <div class="error" id="errorMsg"></div>
 
+        <!-- Spell Correction Notice -->
+        <div class="spell-correction" id="spellNotice"></div>
+
         <!-- Search Section -->
         <div class="search-section">
             <h2 class="search-title">Search for Medicines</h2>
@@ -668,6 +687,7 @@
             const symptom = document.getElementById('symptomInput').value.trim();
             const numRecommendations = document.getElementById('numRecommendations').value;
             const errorMsg = document.getElementById('errorMsg');
+            const spellNotice = document.getElementById('spellNotice');
             const loading = document.getElementById('loading');
             const results = document.getElementById('results');
             const emptyState = document.getElementById('emptyState');
@@ -675,6 +695,8 @@
 
             errorMsg.style.display = 'none';
             errorMsg.textContent = '';
+            spellNotice.style.display = 'none';
+            spellNotice.textContent = '';
 
             if (!symptom) {
                 errorMsg.textContent = 'Please enter a symptom or medical condition';
@@ -717,8 +739,14 @@
                 }
 
                 if (data.recommendations && data.recommendations.length > 0) {
+                    // Show spell correction notice if applicable
+                    if (data.spell_corrected && data.corrected_query) {
+                        spellNotice.innerHTML = `<strong>✨ Spell Correction Applied:</strong> Showing results for "<strong>${data.corrected_query}</strong>" instead of "${data.query}"`;
+                        spellNotice.style.display = 'block';
+                    }
+                    
                     document.getElementById('resultsHeader').textContent = 
-                        `Top ${data.count} Recommendations for "${data.query}"`;
+                        `Top ${data.count} Recommendations for "${data.corrected_query || data.query}"`;
                     
                     resultsContainer.innerHTML = data.recommendations.map(med => `
                         <div class="medicine-card">

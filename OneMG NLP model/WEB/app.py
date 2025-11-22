@@ -18,6 +18,16 @@ import string
 import os
 import warnings
 import sys
+from difflib import get_close_matches
+
+# Try to import spell checker
+try:
+    from spellchecker import SpellChecker
+    spell = SpellChecker()
+    SPELL_CHECKER_AVAILABLE = True
+except ImportError:
+    SPELL_CHECKER_AVAILABLE = False
+    print("[WARNING] pyspellchecker not installed. Install with: pip install pyspellchecker")
 
 warnings.filterwarnings('ignore')
 
@@ -97,6 +107,63 @@ tfidf_vectorizer_optimized = TfidfVectorizer(
 
 tfidf_matrix_optimized = tfidf_vectorizer_optimized.fit_transform(df['Uses_for_tfidf'])
 
+# Build vocabulary for spell correction
+all_medical_terms = set()
+for text in df['Uses'].dropna():
+    words = str(text).lower().split()
+    all_medical_terms.update([w for w in words if len(w) > 3])
+
+# Add medical vocabulary to spell checker if available
+if SPELL_CHECKER_AVAILABLE:
+    spell.word_frequency.load_words(all_medical_terms)
+    print(f"[OK] Loaded {len(all_medical_terms)} medical terms into spell checker")
+
+def correct_spelling(text):
+    """
+    Correct spelling mistakes in user input using dictionary and fuzzy matching
+    Returns corrected text and whether correction was applied
+    
+    Priority:
+    1. Medical vocabulary (exact match)
+    2. Fuzzy match with medical terms (for medical typos)
+    3. English dictionary (for common words)
+    """
+    words = text.lower().split()
+    corrected_words = []
+    was_corrected = False
+    
+    for word in words:
+        if len(word) <= 3:  # Skip short words
+            corrected_words.append(word)
+            continue
+        
+        # Priority 1: Check if word exists in medical vocabulary (exact match)
+        if word in all_medical_terms:
+            corrected_words.append(word)
+            continue
+        
+        # Priority 2: Fuzzy matching with medical terms (for medical typos like "fevr" -> "fever")
+        medical_matches = get_close_matches(word, all_medical_terms, n=1, cutoff=0.75)
+        if medical_matches:
+            corrected_words.append(medical_matches[0])
+            was_corrected = True
+            continue
+        
+        # Priority 3: Use English dictionary for common words
+        if SPELL_CHECKER_AVAILABLE:
+            if word not in spell:
+                correction = spell.correction(word)
+                if correction and correction != word:
+                    corrected_words.append(correction)
+                    was_corrected = True
+                    continue
+        
+        # No correction found, keep original word
+        corrected_words.append(word)
+    
+    corrected_text = ' '.join(corrected_words)
+    return corrected_text, was_corrected
+
 def recommend_medicines_advanced(user_problem, top_n=5, threshold=0.0):
     """
     Recommend medicines based on user symptoms
@@ -166,7 +233,10 @@ def recommend():
         if not symptom:
             return jsonify({'error': 'Please enter a symptom or medical condition'}), 400
         
-        recommendations = recommend_medicines_advanced(symptom, top_n=num_recommendations)
+        # Apply spell correction
+        corrected_symptom, was_corrected = correct_spelling(symptom)
+        
+        recommendations = recommend_medicines_advanced(corrected_symptom, top_n=num_recommendations)
         
         results = []
         for idx, row in recommendations.iterrows():
@@ -197,12 +267,19 @@ def recommend():
             }
             results.append(result_item)
         
-        return jsonify({
+        response_data = {
             'success': True,
             'query': symptom,
             'recommendations': results,
             'count': len(results)
-        })
+        }
+        
+        # Add spell correction info if correction was applied
+        if was_corrected:
+            response_data['corrected_query'] = corrected_symptom
+            response_data['spell_corrected'] = True
+        
+        return jsonify(response_data)
     
     except Exception as e:
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
