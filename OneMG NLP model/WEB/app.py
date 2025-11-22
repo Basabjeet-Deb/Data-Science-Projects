@@ -55,7 +55,7 @@ def generate_rating(x):
         return round(np.random.uniform(3.5, 5.0), 1)
 
 df['Overall_Rating'] = df['Overall_Rating'].apply(generate_rating)
-print(f"✅ Loaded {len(df)} medicines with ratings")
+print(f"[OK] Loaded {len(df)} medicines with ratings")
 
 target = "Uses"
 
