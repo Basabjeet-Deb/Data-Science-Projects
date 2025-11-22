@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - OneMG Medicine Recommendation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+        .header p {
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .btn {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .output {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 API Test Console</h1>
+            <p>Test OneMG Medicine Recommendation API Endpoints</p>
+        </div>
+
+        <div class="content">
+            <!-- Health Check Test -->
+            <div class="test-section">
+                <h2>1. Health Check</h2>
+                <p>Test if the server is running and get system status.</p>
+                <button class="btn" onclick="testHealth()">Test Health Endpoint</button>
+                <div id="healthOutput" class="output" style="display: none;"></div>
+            </div>
+
+            <!-- Recommendation Test -->
+            <div class="test-section">
+                <h2>2. Medicine Recommendation</h2>
+                <p>Test the recommendation API with custom symptoms.</p>
+                
+                <div class="input-group">
+                    <label>Symptom:</label>
+                    <input type="text" id="symptomInput" value="fever and pain" placeholder="Enter symptom...">
+                </div>
+                
+                <div class="input-group">
+                    <label>Number of Recommendations:</label>
+                    <input type="number" id="numRecommendations" value="3" min="1" max="10">
+                </div>
+                
+                <button class="btn" onclick="testRecommendation()">Test Recommendation API</button>
+                <button class="btn" onclick="testRecommendation('headache')">Test: "headache"</button>
+                <button class="btn" onclick="testRecommendation('stomach pain and acidity')">Test: "stomach pain"</button>
+                
+                <div id="recommendOutput" class="output" style="display: none;"></div>
+            </div>
+
+            <!-- All Tests -->
+            <div class="test-section">
+                <h2>3. Run All Tests</h2>
+                <p>Execute all API tests sequentially.</p>
+                <button class="btn" onclick="runAllTests()">Run All Tests</button>
+                <div id="allTestsOutput" class="output" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showOutput(elementId, content, status = 'success') {
+            const output = document.getElementById(elementId);
+            output.style.display = 'block';
+            
+            let statusClass = status === 'loading' ? 'loading' : (status === 'error' ? 'error' : 'success');
+            let statusText = status === 'loading' ? '⏳ Loading...' : (status === 'error' ? '❌ Error' : '✅ Success');
+            
+            output.innerHTML = `<span class="status ${statusClass}">${statusText}</span>\n${content}`;
+        }
+
+        async function testHealth() {
+            showOutput('healthOutput', 'Testing health endpoint...', 'loading');
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/api/health`);
+                const endTime = Date.now();
+                const data = await response.json();
+                
+                const output = `Response Time: ${endTime - startTime}ms
+Status Code: ${response.status}
+
+Response Data:
+${JSON.stringify(data, null, 2)}`;
+                
+                showOutput('healthOutput', output, 'success');
+            } catch (error) {
+                showOutput('healthOutput', `Error: ${error.message}\n\nStack:\n${error.stack}`, 'error');
+            }
+        }
+
+        async function testRecommendation(customSymptom = null) {
+            const symptom = customSymptom || document.getElementById('symptomInput').value;
+            const numRecs = parseInt(document.getElementById('numRecommendations').value);
+            
+            showOutput('recommendOutput', `Testing with symptom: "${symptom}"...`, 'loading');
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/api/recommend`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        symptom: symptom, 
+                        num_recommendations: numRecs 
+                    })
+                });
+                const endTime = Date.now();
+                
+                const data = await response.json();
+                
+                let output = `Response Time: ${endTime - startTime}ms
+Status Code: ${response.status}
+Query: "${data.query}"
+Results Found: ${data.count}
+
+`;
+                
+                if (data.recommendations && data.recommendations.length > 0) {
+                    output += 'Top Recommendations:\n';
+                    data.recommendations.forEach((med, idx) => {
+                        output += `\n${idx + 1}. ${med.drug_name}
+   Accuracy: ${med.accuracy}%
+   Price: ${med.price}
+   Manufacturer: ${med.manufacturer}
+   Uses: ${med.uses.substring(0, 80)}...
+`;
+                    });
+                }
+                
+                output += `\n\nFull Response:
+${JSON.stringify(data, null, 2)}`;
+                
+                showOutput('recommendOutput', output, 'success');
+            } catch (error) {
+                showOutput('recommendOutput', `Error: ${error.message}\n\nStack:\n${error.stack}`, 'error');
+            }
+        }
+
+        async function runAllTests() {
+            showOutput('allTestsOutput', 'Running all tests...', 'loading');
+            
+            let results = '=== API TEST SUITE ===\n\n';
+            
+            // Test 1: Health Check
+            results += '1. HEALTH CHECK TEST\n';
+            results += '─'.repeat(50) + '\n';
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                results += `✅ PASSED - Status: ${response.status}\n`;
+                results += `   Server: ${data.status}\n`;
+                results += `   Medicines: ${data.medicines}\n\n`;
+            } catch (error) {
+                results += `❌ FAILED - ${error.message}\n\n`;
+            }
+            
+            // Test 2: Strong Match
+            results += '2. STRONG MATCH TEST (fever and pain)\n';
+            results += '─'.repeat(50) + '\n';
+            try {
+                const response = await fetch(`${API_BASE}/api/recommend`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symptom: 'fever and pain', num_recommendations: 3 })
+                });
+                const data = await response.json();
+                results += `✅ PASSED - Status: ${response.status}\n`;
+                results += `   Results: ${data.count}\n`;
+                results += `   Top Match: ${data.recommendations[0].drug_name} (${data.recommendations[0].accuracy}%)\n\n`;
+            } catch (error) {
+                results += `❌ FAILED - ${error.message}\n\n`;
+            }
+            
+            // Test 3: Weak Match
+            results += '3. WEAK MATCH TEST (headache)\n';
+            results += '─'.repeat(50) + '\n';
+            try {
+                const response = await fetch(`${API_BASE}/api/recommend`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symptom: 'headache', num_recommendations: 3 })
+                });
+                const data = await response.json();
+                results += `✅ PASSED - Status: ${response.status}\n`;
+                results += `   Results: ${data.count}\n`;
+                results += `   Top Match: ${data.recommendations[0].drug_name} (${data.recommendations[0].accuracy}%)\n\n`;
+            } catch (error) {
+                results += `❌ FAILED - ${error.message}\n\n`;
+            }
+            
+            results += '='.repeat(50) + '\n';
+            results += 'ALL TESTS COMPLETED\n';
+            
+            showOutput('allTestsOutput', results, 'success');
+        }
+
+        // Auto-run health check on load
+        window.onload = function() {
+            console.log('API Test Console Ready');
+            console.log('Base URL:', API_BASE);
+        };
+    </script>
+</body>
+</html>
